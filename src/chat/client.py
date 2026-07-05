@@ -9,11 +9,13 @@ from constants import (
     DEFAULT_PORT,
     ENCODING_UTF8,
     MAX_DATAGRAM_SIZE,
+    MESSAGE_TYPE_CHAT,
     MESSAGE_TYPE_ERROR,
     MESSAGE_TYPE_JOIN,
-    MESSAGE_TYPE_JOIN_ACK,
     MESSAGE_TYPE_LEAVE,
     MESSAGE_TYPE_MSG,
+    MESSAGE_TYPE_SYSTEM,
+    MESSAGE_TYPE_WELCOME,
     SOCKET_TIMEOUT_SECONDS_CLIENT,
 )
 
@@ -73,12 +75,10 @@ def receive_messages(sock: socket.socket) -> None:
 
             msg_type = message.get("type")
 
-            if msg_type == MESSAGE_TYPE_JOIN:
-                print(f"\n*** {message.get('nickname')} entrou no chat ***")
-            elif msg_type == MESSAGE_TYPE_LEAVE:
-                print(f"\n*** {message.get('nickname')} saiu do chat ***")
-            elif msg_type == MESSAGE_TYPE_MSG:
-                print(f"\n[{message.get('nickname')}]: {message.get('content')}")
+            if msg_type == MESSAGE_TYPE_SYSTEM:
+                print(f"\n*** {message.get('message')} ***")
+            elif msg_type == MESSAGE_TYPE_CHAT:
+                print(f"\n[{message.get('nickname')}]: {message.get('message')}")
         except (socket.timeout, OSError):
             break
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -122,7 +122,7 @@ def main() -> int:
                 continue
 
             msg_type = message.get("type")
-            if msg_type == MESSAGE_TYPE_JOIN_ACK:
+            if msg_type == MESSAGE_TYPE_WELCOME:
                 break
             elif msg_type == MESSAGE_TYPE_ERROR:
                 print(f"Erro: {message.get('message')}")
@@ -152,7 +152,7 @@ def main() -> int:
                 texto = input()
                 if texto.strip():
                     msg = json.dumps(
-                        {"type": MESSAGE_TYPE_MSG, "content": texto}
+                        {"type": MESSAGE_TYPE_MSG, "message": texto}
                     ).encode(ENCODING_UTF8)
                     sock.sendto(msg, server_address)
             except EOFError:
