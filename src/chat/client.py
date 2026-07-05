@@ -67,12 +67,12 @@ def receive_messages(sock: socket.socket) -> None:
         try:
             data, _ = sock.recvfrom(MAX_DATAGRAM_SIZE)
             message = json.loads(data.decode(ENCODING_UTF8))
-            
+
             if not isinstance(message, dict):
                 continue
-                
+
             msg_type = message.get("type")
-            
+
             if msg_type == MESSAGE_TYPE_JOIN:
                 print(f"\n*** {message.get('nickname')} entrou no chat ***")
             elif msg_type == MESSAGE_TYPE_LEAVE:
@@ -104,12 +104,14 @@ def main() -> int:
         print(f"Erro ao criar socket: {error}", file=sys.stderr)
         return 1
 
-    join_msg = json.dumps({"type": MESSAGE_TYPE_JOIN, "nickname": args.nickname}).encode(ENCODING_UTF8)
-    
+    join_msg = json.dumps(
+        {"type": MESSAGE_TYPE_JOIN, "nickname": args.nickname}
+    ).encode(ENCODING_UTF8)
+
     try:
         sock.sendto(join_msg, server_address)
         sock.settimeout(SOCKET_TIMEOUT_SECONDS_CLIENT)
-        
+
         while True:
             data, _ = sock.recvfrom(MAX_DATAGRAM_SIZE)
             try:
@@ -118,7 +120,7 @@ def main() -> int:
                     continue
             except (json.JSONDecodeError, UnicodeDecodeError):
                 continue
-                
+
             msg_type = message.get("type")
             if msg_type == MESSAGE_TYPE_JOIN_ACK:
                 break
@@ -126,7 +128,7 @@ def main() -> int:
                 print(f"Erro: {message.get('message')}")
                 sock.close()
                 return 1
-                
+
     except (socket.timeout, ConnectionResetError):
         print("Erro: Servidor indisponível ou não respondeu a tempo.")
         sock.close()
@@ -138,7 +140,7 @@ def main() -> int:
             print(f"Erro de conexão: {e}")
         sock.close()
         return 1
-        
+
     sock.settimeout(None)
 
     recv_thread = threading.Thread(target=receive_messages, args=(sock,), daemon=True)
