@@ -306,7 +306,8 @@ class UdpLabState:
                 payload=payload,
                 event=self._chat_event(message),
             )
-            self._append_message(session.client_id, message)
+            for cid in list(self._messages):
+                self._append_message(cid, message)
 
     def send_chat(self, client_id: Any, text: Any) -> None:
         if client_id not in CLIENT_IDS:
@@ -333,6 +334,11 @@ class UdpLabState:
             payload=payload,
             event=f"MSG · {session.nickname}",
         )
+        self._append_message(client_id, {
+            "type": "CHAT",
+            "nickname": session.nickname,
+            "message": text,
+        })
         log_event("CHAT MSG", f"{session.nickname} → :{CHAT_PORT} · {len(payload)} bytes")
 
     def leave_client(self, client_id: Any) -> None:
