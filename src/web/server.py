@@ -306,8 +306,7 @@ class UdpLabState:
                 payload=payload,
                 event=self._chat_event(message),
             )
-            for cid in list(self._messages):
-                self._append_message(cid, message)
+            self._append_message(session.client_id, message)
 
     def send_chat(self, client_id: Any, text: Any) -> None:
         if client_id not in CLIENT_IDS:
