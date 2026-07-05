@@ -68,8 +68,21 @@ function renderClient(clientId) {
   const badge = document.querySelector(`#${clientId}-online`);
   const address = document.querySelector(`#${clientId}-address`);
   const nickname = document.querySelector(`#${clientId}-nickname`);
+  const nicknameValue = nickname.value.trim() || client?.nickname || "";
   const input = document.querySelector(`#${clientId}-message`);
   const sendButton = card.querySelector(".message-form button");
+  const avatar = card.querySelector(".avatar");
+  const label = card.querySelector(".client-identity label");
+  const msgLabel = card.querySelector(`label[for="${clientId}-message"]`);
+  const msgContainer = card.querySelector(".messages");
+
+  const displayName = nicknameValue || (clientId === "alice" ? "Cliente 1" : "Cliente 2");
+  const initial = displayName.charAt(0).toUpperCase();
+  avatar.textContent = initial;
+  label.textContent = displayName;
+  msgLabel.textContent = `Mensagem de ${displayName}`;
+  input.placeholder = `Mensagem de ${displayName}...`;
+  msgContainer.setAttribute("aria-label", `Mensagens de ${displayName}`);
 
   badge.textContent = online ? "ONLINE" : "OFFLINE";
   badge.classList.toggle("offline", !online);
@@ -81,12 +94,53 @@ function renderClient(clientId) {
   sendButton.disabled = !online;
 }
 
+function setEchoResult(data) {
+  elements.echoResult.replaceChildren();
+  elements.echoResult.classList.remove("error");
+  if (!data) {
+    elements.echoResult.textContent = "Envie uma mensagem para observar a resposta UDP.";
+    return;
+  }
+  if (data.error) {
+    elements.echoResult.classList.add("error");
+    elements.echoResult.textContent = data.error;
+    return;
+  }
+  const grid = document.createElement("div");
+  grid.className = "echo-result-grid";
+  const fields = [
+    { label: "Resposta", value: `"${data.message}"`, cls: "echo-msg" },
+    { label: "Bytes", value: `${data.bytes}`, cls: "echo-bytes" },
+    { label: "Latência", value: `${data.latency_ms} ms`, cls: "echo-latency" },
+    { label: "Porta do cliente", value: `:${data.client_port}`, cls: "echo-port" },
+  ];
+  for (const f of fields) {
+    const div = document.createElement("div");
+    div.className = `echo-field ${f.cls}`;
+    const lbl = document.createElement("span");
+    lbl.className = "echo-label";
+    lbl.textContent = f.label;
+    const val = document.createElement("strong");
+    val.className = "echo-value";
+    val.textContent = f.value;
+    div.append(lbl, val);
+    grid.append(div);
+  }
+  elements.echoResult.append(grid);
+}
+
 function appendTextElement(parent, className, text, tagName = "span") {
   const element = document.createElement(tagName);
   element.className = className;
   element.textContent = text;
   parent.append(element);
   return element;
+}
+
+function getNickname(clientId) {
+  const input = document.querySelector(`#${clientId}-nickname`);
+  const nick = input ? input.value.trim() : "";
+  return nick || (clientId === "alice" ? "Cliente 1" : "Cliente 2");
 }
 
 function renderMessages(clientId) {
@@ -101,7 +155,7 @@ function renderMessages(clientId) {
       "empty-message",
       client
         ? "Aguardando mensagens UDP..."
-        : `${clientId === "alice" ? "Alice" : "Bob"} ainda não entrou no chat.`,
+        : `${getNickname(clientId)} ainda não entrou no chat.`,
       "p",
     );
     return;
@@ -185,14 +239,24 @@ function renderState() {
   const ports = clientIds
     .map((clientId) => state.clients[clientId]?.local_port)
     .filter(Boolean);
-  elements.clientPorts.textContent = ports.length
-    ? ports.map((port) => `:${port}`).join(" · ")
-    : "portas efêmeras";
+  elements.clientPorts.replaceChildren();
+  if (ports.length) {
+    for (const port of ports) {
+      const tag = document.createElement("span");
+      tag.className = "port-tag";
+      tag.textContent = `:${port}`;
+      elements.clientPorts.append(tag);
+    }
+  } else {
+    elements.clientPorts.textContent = "portas efêmeras";
+  }
 
   const allConnected = clientIds.every((clientId) => state.clients[clientId]);
+  const nick1 = getNickname("alice");
+  const nick2 = getNickname("bob");
   elements.connectAll.textContent = allConnected
-    ? "Alice e Bob conectados"
-    : "Conectar Alice e Bob";
+    ? `${nick1} e ${nick2} conectados`
+    : `Conectar ${nick1} e ${nick2}`;
   elements.connectAll.disabled = allConnected;
   renderTraffic();
 }
@@ -224,21 +288,17 @@ async function joinClient(clientId) {
 elements.echoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   elements.echoSend.disabled = true;
-  elements.echoResult.classList.remove("error");
-  elements.echoResult.textContent = "Aguardando resposta UDP...";
+  setEchoResult({ error: "Aguardando resposta UDP..." });
   try {
     const result = await api("/api/echo", {
       method: "POST",
       body: JSON.stringify({ message: elements.echoMessage.value }),
     });
-    elements.echoResult.textContent =
-      `Resposta idêntica: “${result.message}” · ${result.bytes} bytes · ` +
-      `${result.latency_ms} ms · cliente :${result.client_port}`;
+    setEchoResult(result);
     showToast("Datagrama Echo enviado e recebido.");
     await refreshState();
   } catch (error) {
-    elements.echoResult.classList.add("error");
-    elements.echoResult.textContent = error.message;
+    setEchoResult({ error: error.message });
     showToast(error.message, true);
   } finally {
     elements.echoSend.disabled = false;
@@ -248,9 +308,7 @@ elements.echoForm.addEventListener("submit", async (event) => {
 elements.echoClear.addEventListener("click", () => {
   elements.echoMessage.value = "";
   elements.echoMessage.focus();
-  elements.echoResult.classList.remove("error");
-  elements.echoResult.textContent =
-    "Envie uma mensagem para observar a resposta UDP.";
+  setEchoResult(null);
 });
 
 elements.connectAll.addEventListener("click", async () => {
@@ -261,7 +319,9 @@ elements.connectAll.addEventListener("click", async () => {
         await joinClient(clientId);
       }
     }
-    showToast("Alice e Bob entraram no Chat UDP.");
+    const nickA = getNickname("alice");
+    const nickB = getNickname("bob");
+    showToast(`${nickA} e ${nickB} entraram no Chat UDP.`);
     await refreshState();
   } catch (error) {
     showToast(error.message, true);
@@ -307,9 +367,7 @@ elements.resetLab.addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({}),
     });
-    elements.echoResult.classList.remove("error");
-    elements.echoResult.textContent =
-      "Envie uma mensagem para observar a resposta UDP.";
+    setEchoResult(null);
     showToast("Laboratório reiniciado.");
     await refreshState();
   } catch (error) {

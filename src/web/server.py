@@ -32,6 +32,14 @@ class BridgeError(ValueError):
     """Erro de entrada ou comunicação que pode ser exibido ao usuário."""
 
 
+def log_event(event: str, detail: str = "") -> None:
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    line = f"[{timestamp}] {event}"
+    if detail:
+        line += f" · {detail}"
+    print(line, flush=True)
+
+
 def encode_chat(message_type: str, **fields: Any) -> bytes:
     payload = json.dumps(
         {"type": message_type, **fields},
@@ -183,6 +191,11 @@ class UdpLabState:
         if response != payload:
             raise BridgeError("o servidor Echo alterou o datagrama")
         elapsed_ms = round((time.perf_counter() - started_at) * 1_000, 2)
+        log_event(
+            "ECHO",
+            f"TX → :{ECHO_PORT} · RX ← :{local_address[1]} · "
+            f"{len(payload)} bytes · {elapsed_ms}ms",
+        )
         return {
             "message": response.decode("utf-8", errors="replace"),
             "bytes": len(response),
@@ -264,6 +277,7 @@ class UdpLabState:
             daemon=True,
         )
         session.receiver.start()
+        log_event("CHAT JOIN", f"{nickname} ← :{local_address[1]}")
         return {
             "id": client_id,
             "nickname": nickname,
@@ -319,6 +333,7 @@ class UdpLabState:
             payload=payload,
             event=f"MSG · {session.nickname}",
         )
+        log_event("CHAT MSG", f"{session.nickname} → :{CHAT_PORT} · {len(payload)} bytes")
 
     def leave_client(self, client_id: Any) -> None:
         if client_id not in CLIENT_IDS:
@@ -344,12 +359,14 @@ class UdpLabState:
         except OSError:
             pass
         finally:
+            log_event("CHAT LEAVE", session.nickname)
             session.stop_event.set()
             session.udp_socket.close()
             if session.receiver:
                 session.receiver.join(timeout=0.5)
 
     def reset(self) -> None:
+        log_event("RESET", "reiniciando laboratório")
         for client_id in tuple(CLIENT_IDS):
             self.leave_client(client_id)
         with self._lock:
@@ -437,6 +454,7 @@ class UdpLabHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             self._send_json({"status": "ok"})
             return
+        log_event("HTTP GET", path)
 
         static_files = {
             "/": "index.html",
@@ -467,6 +485,7 @@ class UdpLabHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        log_event("HTTP POST", path)
         try:
             data = self._read_json()
             if path == "/api/echo":
