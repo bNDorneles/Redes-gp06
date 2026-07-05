@@ -1,0 +1,15 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test/lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Trae / agent tooling
+.trae/
+.trae-plugin/
+AGENTS.md
