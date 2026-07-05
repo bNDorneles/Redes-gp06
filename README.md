@@ -7,7 +7,7 @@ material de apoio para captura e análise de tráfego.
 
 ## Requisitos
 
-- **Python 3.9 ou superior** (testado em Python 3.14, Windows).
+- **Python 3.10 ou superior** (testado em Python 3.14, Windows).
 - Nenhuma dependência externa: tudo usa apenas a biblioteca padrão do Python
   (`socket`, `argparse`, `json`, `subprocess`, `http.server`).
 - Portas `5000/UDP` e `5001/UDP` livres na máquina local (e `8080/TCP` se for
@@ -22,6 +22,8 @@ material de apoio para captura e análise de tráfego.
 ├── scripts/
 │   ├── run_demo.py        # Demonstração integrada Echo + Chat em um único comando
 │   └── run_web.py         # Central web (interface gráfica no navegador)
+├── evidencias/
+│   └── captura-real.pcapng # Captura real da demonstração na interface de loopback
 ├── src/
 │   ├── echo/
 │   │   ├── server.py      # Servidor Echo UDP (porta 5000)
@@ -100,28 +102,31 @@ python scripts/run_web.py
 
 Abre `http://127.0.0.1:8080` no navegador, iniciando Echo e Chat por trás de
 uma interface visual. Use `--no-browser` para não abrir o navegador
-automaticamente.
-
-## Roteiro de apresentação
-
-1. Abrir um terminal na raiz do projeto e (se for capturar tráfego) abrir o
-   Wireshark/tcpdump **antes** do próximo passo (veja a seção seguinte).
-2. Rodar `python scripts/run_demo.py` e narrar o que aparece na tela:
-   - os dois servidores sobem em `5000/UDP` e `5001/UDP` ao mesmo tempo;
-   - o cliente Echo envia uma mensagem e recebe a mesma mensagem de volta;
-   - Alice e Bob entram no chat e trocam mensagens entre si.
-3. Como alternativa mais interativa, repetir o mesmo fluxo manualmente em
-   janelas separadas (servidor Echo, servidor Chat, cliente Echo, dois
-   clientes de Chat), digitando mensagens ao vivo.
-4. Parar a captura de tráfego e mostrar, no Wireshark, os datagramas nas
-   portas `5000` e `5001` lado a lado — inclusive o conteúdo de cada um.
+automaticamente. O navegador usa HTTP apenas para conversar com a ponte local
+em Python; as trocas exibidas nos painéis Echo e Chat continuam passando por
+sockets UDP reais nas portas `5000` e `5001`.
 
 ## Captura e análise de tráfego
 
-O projeto não inclui uma captura pronta: ela precisa ser feita localmente,
-pois depende de driver de captura de pacotes (Npcap no Windows) e, em geral,
-de privilégios administrativos — algo que só pode ser feito na máquina de
-quem apresenta.
+O repositório inclui `evidencias/captura-real.pcapng`, uma captura real feita
+na interface de loopback durante a execução de `scripts/run_demo.py`. Ela
+contém 16 datagramas e pode ser aberta diretamente no Wireshark. A captura
+mostra:
+
+- requisição e resposta do Echo na porta `5000`;
+- entrada de Alice e Bob no Chat (`JOIN`/`WELCOME`);
+- mensagens retransmitidas pelo servidor (`MSG`/`CHAT`);
+- saída dos clientes (`LEAVE`/`BYE`);
+- portas efêmeras distintas escolhidas pelo sistema operacional.
+
+Para inspecionar somente os pacotes relevantes, abra o arquivo e aplique:
+
+```
+udp.port == 5000 || udp.port == 5001
+```
+
+As portas efêmeras variam em cada execução. Para produzir uma nova captura,
+siga o procedimento abaixo.
 
 ### Passo a passo (Wireshark)
 
@@ -187,8 +192,8 @@ sudo tcpdump -i lo -n "udp port 5000 or udp port 5001" -w captura.pcap
   há rede real envolvida, então efeitos como latência, perda de pacotes ou
   congestionamento não são observados.
 - **Poucos clientes**: a demonstração usa apenas dois clientes de chat
-  simultâneos; o comportamento do servidor sob muitas conexões concorrentes
-  não foi validado.
+  simultâneos; o comportamento do servidor com muitos clientes enviando
+  datagramas ao mesmo tempo não foi validado.
 - **Estado volátil**: a lista de clientes do chat existe apenas em memória
   no processo do servidor — se ele for reiniciado, todos os apelidos e
   registros de quem está no chat se perdem.
