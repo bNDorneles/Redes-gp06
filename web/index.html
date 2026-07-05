@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Demonstração visual de aplicações Echo e Chat usando UDP real."
+    >
+    <title>UDP Lab · Grupo 6</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#experimentos">Ir para os experimentos</a>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">UDP</span>
+        <div>
+          <p class="brand-title">UDP LAB</p>
+          <p class="brand-subtitle">GRUPO 6 · REDES DE COMPUTADORES</p>
+        </div>
+      </div>
+
+      <div class="server-status" aria-label="Estado dos servidores">
+        <div class="status-item">
+          <span class="status-dot echo-dot" aria-hidden="true"></span>
+          <span>ECHO<br><strong>:5000</strong></span>
+          <span id="echo-status" class="sr-only">verificando</span>
+        </div>
+        <div class="status-item">
+          <span class="status-dot chat-dot" aria-hidden="true"></span>
+          <span>CHAT<br><strong>:5001</strong></span>
+          <span id="chat-status" class="sr-only">verificando</span>
+        </div>
+        <div class="runtime-item">
+          PYTHON<br><strong id="python-version">3.x</strong>
+        </div>
+      </div>
+    </header>
+
+    <main id="experimentos" class="dashboard">
+      <aside class="side-column" aria-label="Experimento Echo e topologia">
+        <section class="panel echo-panel" aria-labelledby="echo-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow echo-color">ECHO UDP</p>
+              <h1 id="echo-title">Teste de Echo</h1>
+            </div>
+            <code>127.0.0.1:5000</code>
+          </div>
+
+          <form id="echo-form">
+            <label for="echo-message">Mensagem</label>
+            <textarea
+              id="echo-message"
+              name="message"
+              maxlength="2000"
+              rows="3"
+              required
+            >Olá, professor!</textarea>
+            <div class="button-row">
+              <button id="echo-send" class="button button-echo" type="submit">
+                Enviar datagrama
+              </button>
+              <button id="echo-clear" class="button button-secondary" type="button">
+                Limpar
+              </button>
+            </div>
+          </form>
+
+          <div id="echo-result" class="result-box" aria-live="polite">
+            Envie uma mensagem para observar a resposta UDP.
+          </div>
+          <details class="explanation">
+            <summary>Como funciona o Echo?</summary>
+            <ol>
+              <li>
+                <strong>1. Envio:</strong> o datagrama sai do seu navegador
+                → ponte HTTP local → socket UDP → servidor Echo em
+                <code>:5000</code>.
+              </li>
+              <li>
+                <strong>2. Servidor:</strong> lê os bytes, registra o IP e a
+                porta de origem e devolve o mesmo datagrama sem alteração.
+              </li>
+              <li>
+                <strong>3. Resposta:</strong> o datagrama volta pelo mesmo
+                caminho e aparece abaixo com bytes, latência e porta efêmera
+                do cliente.
+              </li>
+            </ol>
+            <p>
+              O Echo demonstra que <strong>UDP não estabelece conexão</strong>:
+              o servidor não mantém estado, apenas responde a quem enviou.
+            </p>
+          </details>
+        </section>
+
+        <section class="panel topology-panel" aria-labelledby="topology-title">
+          <p class="eyebrow">Demultiplexação</p>
+          <h2 id="topology-title">Mesmo host, portas diferentes</h2>
+          <div class="topology" aria-label="Fluxo dos datagramas">
+            <div class="topology-node clients-node">
+              <span>Clientes</span>
+              <strong id="client-ports">portas efêmeras</strong>
+            </div>
+            <div class="topology-flow" aria-hidden="true">
+              <span>UDP</span>
+              <span class="flow-arrows">⇅</span>
+            </div>
+            <div class="server-nodes">
+              <div class="topology-node echo-node">
+                <span>Echo</span><strong>:5000</strong>
+              </div>
+              <div class="topology-node chat-node">
+                <span>Chat</span><strong>:5001</strong>
+              </div>
+            </div>
+          </div>
+          <details class="explanation">
+            <summary>O que é demultiplexação?</summary>
+            <p>
+              Quando um datagrama UDP chega ao computador, o sistema
+              operacional examina o <strong>IP de destino</strong> e a
+              <strong>porta de destino</strong> para entregá-lo ao processo
+              correto.
+            </p>
+            <p>
+              Como Echo (<code>:5000</code>) e Chat (<code>:5001</code>)
+              escutam portas <strong>diferentes</strong>, o SO consegue
+              distinguir os dois — mesmo que os datagramas cheguem pelo mesmo IP
+              (<code>127.0.0.1</code>).
+            </p>
+            <p>
+              Já os <strong>clientes</strong> usam portas efêmeras
+              (temporárias, atribuídas pelo SO) para receber as respostas.
+              Cada cliente tem uma porta única, permitindo que várias
+              conversas ocorram simultaneamente.
+            </p>
+          </details>
+        </section>
+      </aside>
+
+      <section class="main-column" aria-label="Experimento de Chat UDP">
+        <section class="panel chat-section" aria-labelledby="chat-title">
+          <div class="chat-heading">
+            <div>
+              <p class="eyebrow chat-color">CHAT UDP · EXPERIMENTO AO VIVO</p>
+              <h2 id="chat-title">Dois clientes, duas portas efêmeras</h2>
+            </div>
+            <div class="chat-actions">
+              <button id="connect-all" class="button button-chat" type="button">
+                Conectar Alice e Bob
+              </button>
+              <button id="reset-lab" class="button button-secondary" type="button">
+                Reiniciar
+              </button>
+            </div>
+          </div>
+
+          <div class="chat-grid">
+            <article class="client-card alice-card" data-client="alice">
+              <header class="client-header">
+                <span class="avatar alice-avatar" aria-hidden="true">C1</span>
+                <div class="client-identity">
+                  <label for="alice-nickname">Cliente 1</label>
+                  <input
+                    id="alice-nickname"
+                    class="nickname-input"
+                    value="Alice"
+                    maxlength="24"
+                    placeholder="Cliente 1"
+                  >
+                  <span id="alice-address" class="client-address">
+                    desconectada
+                  </span>
+                </div>
+                <span id="alice-online" class="online-badge offline">OFFLINE</span>
+              </header>
+
+              <div
+                id="alice-messages"
+                class="messages"
+                aria-live="polite"
+                aria-label="Mensagens do cliente 1"
+              >
+                <p class="empty-message">Cliente 1 ainda não entrou no chat.</p>
+              </div>
+
+              <form class="message-form" data-client="alice">
+                <label class="sr-only" for="alice-message">
+                  Mensagem do cliente 1
+                </label>
+                <input
+                  id="alice-message"
+                  name="message"
+                  placeholder="Mensagem do cliente 1..."
+                  maxlength="1000"
+                  autocomplete="off"
+                  disabled
+                >
+                <button class="button alice-button" type="submit" disabled>
+                  Enviar
+                </button>
+              </form>
+            </article>
+
+            <article class="client-card bob-card" data-client="bob">
+              <header class="client-header">
+                <span class="avatar bob-avatar" aria-hidden="true">C2</span>
+                <div class="client-identity">
+                  <label for="bob-nickname">Cliente 2</label>
+                  <input
+                    id="bob-nickname"
+                    class="nickname-input"
+                    value="Bob"
+                    maxlength="24"
+                    placeholder="Cliente 2"
+                  >
+                  <span id="bob-address" class="client-address">
+                    desconectado
+                  </span>
+                </div>
+                <span id="bob-online" class="online-badge offline">OFFLINE</span>
+              </header>
+
+              <div
+                id="bob-messages"
+                class="messages"
+                aria-live="polite"
+                aria-label="Mensagens do cliente 2"
+              >
+                <p class="empty-message">Cliente 2 ainda não entrou no chat.</p>
+              </div>
+
+              <form class="message-form" data-client="bob">
+                <label class="sr-only" for="bob-message">
+                  Mensagem do cliente 2
+                </label>
+                <input
+                  id="bob-message"
+                  name="message"
+                  placeholder="Mensagem do cliente 2..."
+                  maxlength="1000"
+                  autocomplete="off"
+                  disabled
+                >
+                <button class="button bob-button" type="submit" disabled>
+                  Enviar
+                </button>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel traffic-panel" aria-labelledby="traffic-title">
+          <div class="traffic-heading">
+            <div>
+              <p class="eyebrow">Tráfego UDP ao vivo</p>
+              <h2 id="traffic-title">Datagramas observados pelos sockets</h2>
+            </div>
+            <code>udp.port == 5000 || udp.port == 5001</code>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Horário</th>
+                  <th scope="col">App</th>
+                  <th scope="col">Fluxo</th>
+                  <th scope="col">Origem</th>
+                  <th scope="col">Destino</th>
+                  <th scope="col">Bytes</th>
+                  <th scope="col">Evento</th>
+                </tr>
+              </thead>
+              <tbody id="traffic-body">
+                <tr>
+                  <td colspan="7" class="empty-table">
+                    Execute uma ação para gerar tráfego UDP.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
