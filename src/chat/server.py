@@ -9,11 +9,14 @@ from constants import (
     DEFAULT_PORT,
     ENCODING_UTF8,
     MAX_DATAGRAM_SIZE,
+    MESSAGE_TYPE_BYE,
+    MESSAGE_TYPE_CHAT,
     MESSAGE_TYPE_ERROR,
     MESSAGE_TYPE_JOIN,
-    MESSAGE_TYPE_JOIN_ACK,
     MESSAGE_TYPE_LEAVE,
     MESSAGE_TYPE_MSG,
+    MESSAGE_TYPE_SYSTEM,
+    MESSAGE_TYPE_WELCOME,
     SOCKET_TIMEOUT_SECONDS_SERVER,
 )
 
@@ -141,10 +144,10 @@ def run_server(host: str, port: int) -> None:
                     )
                 else:
                     clients[client_address] = nickname
-                    send_json(server, {"type": MESSAGE_TYPE_JOIN_ACK}, client_address)
+                    send_json(server, {"type": MESSAGE_TYPE_WELCOME}, client_address)
                     broadcast(
                         server,
-                        {"type": MESSAGE_TYPE_JOIN, "nickname": nickname},
+                        {"type": MESSAGE_TYPE_SYSTEM, "message": f"{nickname} entrou no chat"},
                         clients,
                         exclude=client_address,
                     )
@@ -152,13 +155,13 @@ def run_server(host: str, port: int) -> None:
             elif msg_type == MESSAGE_TYPE_MSG:
                 if client_address not in clients:
                     continue
-                content = message.get("content")
+                content = message.get("message")
                 if not content:
                     continue
                 nickname = clients[client_address]
                 broadcast(
                     server,
-                    {"type": MESSAGE_TYPE_MSG, "nickname": nickname, "content": content},
+                    {"type": MESSAGE_TYPE_CHAT, "nickname": nickname, "message": content},
                     clients,
                     exclude=client_address,
                 )
@@ -170,9 +173,10 @@ def run_server(host: str, port: int) -> None:
                 del clients[client_address]
                 broadcast(
                     server,
-                    {"type": MESSAGE_TYPE_LEAVE, "nickname": nickname},
+                    {"type": MESSAGE_TYPE_SYSTEM, "message": f"{nickname} saiu do chat"},
                     clients,
                 )
+                send_json(server, {"type": MESSAGE_TYPE_BYE}, client_address)
 
 
 def main() -> int:
