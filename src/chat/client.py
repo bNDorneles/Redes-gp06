@@ -127,12 +127,15 @@ def main() -> int:
                 sock.close()
                 return 1
                 
-    except socket.timeout:
+    except (socket.timeout, ConnectionResetError):
         print("Erro: Servidor indisponível ou não respondeu a tempo.")
         sock.close()
         return 1
     except OSError as e:
-        print(f"Erro de conexão: {e}")
+        if getattr(e, "winerror", None) == 10054:
+            print("Erro: Servidor indisponível ou não respondeu a tempo.")
+        else:
+            print(f"Erro de conexão: {e}")
         sock.close()
         return 1
         
