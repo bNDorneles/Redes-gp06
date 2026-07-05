@@ -2,10 +2,12 @@ import argparse
 import json
 import socket
 import sys
+from typing import Optional
 
 from constants import (
     DEFAULT_HOST,
     DEFAULT_PORT,
+    ENCODING_UTF8,
     MAX_DATAGRAM_SIZE,
     MESSAGE_TYPE_ERROR,
     MESSAGE_TYPE_JOIN,
@@ -38,6 +40,48 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def send_json(sock: socket.socket, message: dict, address: tuple[str, int]) -> None:
+    """Serializa e envia um dicionário JSON para um endereço via UDP.
+
+    Args:
+        sock: O socket UDP utilizado para o envio.
+        message: Dicionário contendo a mensagem a ser enviada.
+        address: Tupla (ip, porta) do destinatário.
+    """
+    try:
+        data = json.dumps(message).encode(ENCODING_UTF8)
+        sock.sendto(data, address)
+    except OSError:
+        pass
+
+
+def broadcast(
+    sock: socket.socket,
+    message: dict,
+    clients: dict[tuple[str, int], str],
+    exclude: Optional[tuple[str, int]] = None,
+) -> None:
+    """Envia uma mensagem JSON para todos os clientes registrados.
+
+    Args:
+        sock: O socket UDP utilizado para o envio.
+        message: Dicionário contendo a mensagem a ser retransmitida.
+        clients: Dicionário contendo o registro de todos os clientes ativos.
+        exclude: Tupla (ip, porta) opcional do cliente que não deve receber a mensagem.
+    """
+    try:
+        data = json.dumps(message).encode(ENCODING_UTF8)
+    except (TypeError, ValueError):
+        return
+
+    for addr in list(clients.keys()):
+        if addr != exclude:
+            try:
+                sock.sendto(data, addr)
+            except OSError:
+                pass
+
+
 def run_server(host: str, port: int) -> None:
     """Executa o servidor de chat UDP.
 
@@ -67,7 +111,7 @@ def run_server(host: str, port: int) -> None:
                 continue
 
             try:
-                message = json.loads(data.decode("utf-8"))
+                message = json.loads(data.decode(ENCODING_UTF8))
             except (json.JSONDecodeError, UnicodeDecodeError):
                 continue
 
@@ -90,21 +134,20 @@ def run_server(host: str, port: int) -> None:
                         break
                 
                 if nickname_in_use:
-                    error_msg = json.dumps(
-                        {"type": MESSAGE_TYPE_ERROR, "message": "Apelido já em uso"}
-                    ).encode("utf-8")
-                    server.sendto(error_msg, client_address)
+                    send_json(
+                        server,
+                        {"type": MESSAGE_TYPE_ERROR, "message": "Apelido já em uso"},
+                        client_address,
+                    )
                 else:
                     clients[client_address] = nickname
-                    ack_msg = json.dumps({"type": MESSAGE_TYPE_JOIN_ACK}).encode("utf-8")
-                    server.sendto(ack_msg, client_address)
-                    
-                    broadcast_msg = json.dumps(
-                        {"type": MESSAGE_TYPE_JOIN, "nickname": nickname}
-                    ).encode("utf-8")
-                    for addr in clients:
-                        if addr != client_address:
-                            server.sendto(broadcast_msg, addr)
+                    send_json(server, {"type": MESSAGE_TYPE_JOIN_ACK}, client_address)
+                    broadcast(
+                        server,
+                        {"type": MESSAGE_TYPE_JOIN, "nickname": nickname},
+                        clients,
+                        exclude=client_address,
+                    )
             
             elif msg_type == MESSAGE_TYPE_MSG:
                 if client_address not in clients:
@@ -113,23 +156,23 @@ def run_server(host: str, port: int) -> None:
                 if not content:
                     continue
                 nickname = clients[client_address]
-                broadcast_msg = json.dumps(
-                    {"type": MESSAGE_TYPE_MSG, "nickname": nickname, "content": content}
-                ).encode("utf-8")
-                for addr in clients:
-                    if addr != client_address:
-                        server.sendto(broadcast_msg, addr)
+                broadcast(
+                    server,
+                    {"type": MESSAGE_TYPE_MSG, "nickname": nickname, "content": content},
+                    clients,
+                    exclude=client_address,
+                )
                         
             elif msg_type == MESSAGE_TYPE_LEAVE:
                 if client_address not in clients:
                     continue
                 nickname = clients[client_address]
                 del clients[client_address]
-                broadcast_msg = json.dumps(
-                    {"type": MESSAGE_TYPE_LEAVE, "nickname": nickname}
-                ).encode("utf-8")
-                for addr in list(clients.keys()):
-                    server.sendto(broadcast_msg, addr)
+                broadcast(
+                    server,
+                    {"type": MESSAGE_TYPE_LEAVE, "nickname": nickname},
+                    clients,
+                )
 
 
 def main() -> int:
