@@ -277,6 +277,25 @@ class UdpLabState:
             daemon=True,
         )
         session.receiver.start()
+        with self._lock:
+            for cid, existing in self._sessions.items():
+                if cid != client_id:
+                    self._append_message(
+                        client_id,
+                        {
+                            "type": "SYSTEM",
+                            "nickname": "",
+                            "message": f"{existing.nickname} entrou no chat",
+                        },
+                    )
+            self._append_message(
+                client_id,
+                {
+                    "type": "SYSTEM",
+                    "nickname": "",
+                    "message": f"{nickname} entrou no chat",
+                },
+            )
         log_event("CHAT JOIN", f"{nickname} ← :{local_address[1]}")
         return {
             "id": client_id,
