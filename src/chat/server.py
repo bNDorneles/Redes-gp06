@@ -3,16 +3,17 @@ import json
 import socket
 import sys
 
-MAX_DATAGRAM_SIZE = 65535
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 5001
-SOCKET_TIMEOUT_SECONDS = 1.0
-
-MESSAGE_TYPE_JOIN = "JOIN"
-MESSAGE_TYPE_MSG = "MSG"
-MESSAGE_TYPE_LEAVE = "LEAVE"
-MESSAGE_TYPE_JOIN_ACK = "JOIN_ACK"
-MESSAGE_TYPE_ERROR = "ERROR"
+from constants import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    MAX_DATAGRAM_SIZE,
+    MESSAGE_TYPE_ERROR,
+    MESSAGE_TYPE_JOIN,
+    MESSAGE_TYPE_JOIN_ACK,
+    MESSAGE_TYPE_LEAVE,
+    MESSAGE_TYPE_MSG,
+    SOCKET_TIMEOUT_SECONDS_SERVER,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,7 +54,7 @@ def run_server(host: str, port: int) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server:
         server.bind((host, port))
         # O timeout permite checar KeyboardInterrupt periodicamente no Windows
-        server.settimeout(SOCKET_TIMEOUT_SECONDS)
+        server.settimeout(SOCKET_TIMEOUT_SECONDS_SERVER)
         print(f"Servidor Chat UDP escutando em {host}:{port}")
 
         while True:

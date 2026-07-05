@@ -4,17 +4,18 @@ import socket
 import sys
 import threading
 
-MAX_DATAGRAM_SIZE = 65535
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 5001
-SOCKET_TIMEOUT_SECONDS = 2.0
-ENCODING_UTF8 = "utf-8"
-
-MESSAGE_TYPE_JOIN = "JOIN"
-MESSAGE_TYPE_MSG = "MSG"
-MESSAGE_TYPE_LEAVE = "LEAVE"
-MESSAGE_TYPE_JOIN_ACK = "JOIN_ACK"
-MESSAGE_TYPE_ERROR = "ERROR"
+from constants import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    ENCODING_UTF8,
+    MAX_DATAGRAM_SIZE,
+    MESSAGE_TYPE_ERROR,
+    MESSAGE_TYPE_JOIN,
+    MESSAGE_TYPE_JOIN_ACK,
+    MESSAGE_TYPE_LEAVE,
+    MESSAGE_TYPE_MSG,
+    SOCKET_TIMEOUT_SECONDS_CLIENT,
+)
 
 
 def configure_encoding() -> None:
@@ -107,7 +108,7 @@ def main() -> int:
     
     try:
         sock.sendto(join_msg, server_address)
-        sock.settimeout(SOCKET_TIMEOUT_SECONDS)
+        sock.settimeout(SOCKET_TIMEOUT_SECONDS_CLIENT)
         
         while True:
             data, _ = sock.recvfrom(MAX_DATAGRAM_SIZE)
